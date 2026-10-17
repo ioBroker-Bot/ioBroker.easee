@@ -16,7 +16,7 @@
     "url": "https://github.com/iobroker-community-adapters/ioBroker.easee"
   },
   "engines": {
-    "node": ">= 18"
+    "node": ">= 22"
   },
   "dependencies": {
     "@iobroker/adapter-core": "^3.2.3",
