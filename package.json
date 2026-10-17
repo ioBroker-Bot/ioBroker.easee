@@ -6,14 +6,14 @@
   "contributors": [
     "iobroker-community-adapters <iobroker-community-adapters@gmx.de>"
   ],
-  "homepage": "https://github.com/Newan/ioBroker.easee",
+  "homepage": "https://github.com/iobroker-community-adapters/ioBroker.easee",
   "license": "MIT",
   "keywords": [
     "Wallbox easee"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Newan/ioBroker.easee"
+    "url": "https://github.com/iobroker-community-adapters/ioBroker.easee"
   },
   "engines": {
     "node": ">= 18"
