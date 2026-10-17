@@ -2,10 +2,10 @@
   "name": "iobroker.easee",
   "version": "1.0.10",
   "description": "Adapter to connect Easee Wallbox",
-  "author": {
-    "name": "Jens Nachtigal",
-    "email": "info@newan.de"
-  },
+  "author": "Jens Nachtigal <info@newan.de>",
+  "contributors": [
+    "iobroker-community-adapters <iobroker-community-adapters@gmx.de>"
+  ],
   "homepage": "https://github.com/Newan/ioBroker.easee",
   "license": "MIT",
   "keywords": [
