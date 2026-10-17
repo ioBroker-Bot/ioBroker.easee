@@ -29,6 +29,9 @@ chargerOpMode =
 
 dynamicCircuitCurrentPX -> All phases must be set within 500ms (script) otherwise the phase will be set to 0.    
 
+## Credits
+
+This adapter would not have been possible without the great work of @Newan (https://github.com/Newan), who developed former releases of this adapter.
 
 ## Changelog
 <!--
@@ -37,8 +40,9 @@ dynamicCircuitCurrentPX -> All phases must be set within 500ms (script) otherwis
 -->
 
 ### **WORK IN PROGRESS**
+- (mcm1957) Adapter has been migrated into the iobroker-community-adapter-organisation
 - (iobroker-bot) Adapter requires node.js >= 22 now.
-- (copilot) Adapter requires js-controller >= 6.0.11 now
+- (copilot) Adapter requires js-controller >= 7.2.2 now
 - (copilot) Adapter requires admin >= 7.7.22 now
 
 ### 1.0.10 (2023-07-27)
