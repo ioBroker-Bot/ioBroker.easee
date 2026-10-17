@@ -57,7 +57,6 @@
       "zh-cn": "与 Easee Wallbox API 通信"
     },
     "authors": [
-      "Newan <info@newan.de>",
       "iobroker-community-adapters <iobroker-community-adapters@gmx.de>"
     ],
     "keywords": [
@@ -72,8 +71,8 @@
     "platform": "Javascript/Node.js",
     "icon": "easee.png",
     "enabled": true,
-    "extIcon": "https://raw.githubusercontent.com/Newan/ioBroker.easee/master/admin/easee.png",
-    "readme": "https://github.com/Newan/ioBroker.easee/blob/master/README.md",
+    "extIcon": "https://raw.githubusercontent.com/iobroker-community-adapters/ioBroker.easee/master/admin/easee.png",
+    "readme": "https://github.com/iobroker-community-adapters/ioBroker.easee/blob/master/README.md",
     "loglevel": "info",
     "tier": 3,
     "mode": "daemon",
