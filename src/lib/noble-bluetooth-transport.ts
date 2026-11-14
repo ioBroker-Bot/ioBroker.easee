@@ -992,6 +992,8 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
   private discoveryInFlight = false;
   private cancelDiscovery?: () => void;
   private closed = false;
+  private nobleStopCalled = false;
+  private scanStopOperation?: Promise<void>;
   private readonly closeCancellations = new Set<() => void>();
   private readonly closeController = new AbortController();
 
@@ -1065,7 +1067,10 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
     };
     let onDiscover: ((peripheral: Peripheral) => void) | undefined;
     let discoveredCount = 0;
+    let discoveryResults: BluetoothCandidate[] = [];
     let discoverySucceeded = false;
+    let discoveryFailureLogged = false;
+    let discoveryCancelledByClose = false;
     try {
       const readinessStartedAt = bluetoothDiagnosticNow();
       logBluetoothDiagnostic(
@@ -1202,11 +1207,11 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
           () => new Error("BLE discovery cancelled"),
         );
       }
-      const results = [...discovered.values()];
-      discoveredCount = results.length;
+      discoveryResults = [...discovered.values()];
+      discoveredCount = discoveryResults.length;
       discoverySucceeded = true;
-      return results;
     } catch (error) {
+      discoveryFailureLogged = true;
       logBluetoothDiagnostic(
         this.diagnosticLogger,
         "transport.discovery",
@@ -1224,8 +1229,12 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
       if (onDiscover) {
         this.noble.removeListener("discover", onDiscover);
       }
+      let scanStopOperation = this.scanStopOperation;
       if (this.scanning) {
         this.scanning = false;
+        scanStopOperation = this.stopScanningOnce();
+      }
+      if (scanStopOperation) {
         const scanStopStartedAt = bluetoothDiagnosticNow();
         logBluetoothDiagnostic(
           this.diagnosticLogger,
@@ -1233,7 +1242,11 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
           "started",
         );
         try {
-          await this.noble.stopScanningAsync();
+          await raceWithAbortSignal(
+            scanStopOperation,
+            this.closeController.signal,
+            () => new Error("BLE scanner is closed"),
+          );
           logBluetoothDiagnostic(
             this.diagnosticLogger,
             "transport.scan_stop",
@@ -1241,18 +1254,33 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
             { durationMs: bluetoothDiagnosticNow() - scanStopStartedAt },
           );
         } catch (error) {
-          logBluetoothDiagnostic(
-            this.diagnosticLogger,
-            "transport.scan_stop",
-            "failed",
-            {
-              durationMs: bluetoothDiagnosticNow() - scanStopStartedAt,
-              error,
-            },
-          );
+          if (this.closeController.signal.aborted) {
+            discoveryCancelledByClose = true;
+            discoverySucceeded = false;
+          } else {
+            logBluetoothDiagnostic(
+              this.diagnosticLogger,
+              "transport.scan_stop",
+              "failed",
+              {
+                durationMs: bluetoothDiagnosticNow() - scanStopStartedAt,
+                error,
+              },
+            );
+          }
         }
       }
-      if (discoverySucceeded) {
+      if (discoveryCancelledByClose && !discoveryFailureLogged) {
+        logBluetoothDiagnostic(
+          this.diagnosticLogger,
+          "transport.discovery",
+          "failed",
+          {
+            durationMs: bluetoothDiagnosticNow() - discoveryStartedAt,
+            error: new Error("BLE discovery cancelled"),
+          },
+        );
+      } else if (discoverySucceeded) {
         logBluetoothDiagnostic(
           this.diagnosticLogger,
           "transport.discovery",
@@ -1266,6 +1294,10 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
       this.discoveryInFlight = false;
       this.cancelDiscovery = undefined;
     }
+    if (discoveryCancelledByClose) {
+      throw new Error("BLE discovery cancelled");
+    }
+    return discoveryResults;
   }
 
   async connect(candidate: BluetoothCandidate): Promise<BluetoothLink> {
@@ -1512,10 +1544,12 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
     this.closeController.abort();
     const closeOperation = (async (): Promise<void> => {
       this.cancelDiscovery?.();
-      if (this.scanning) {
-        this.scanning = false;
+      const shouldStopScanning =
+        this.scanning || this.scanStopOperation !== undefined;
+      this.scanning = false;
+      if (shouldStopScanning) {
         try {
-          await this.noble.stopScanningAsync();
+          await this.stopScanningOnce();
         } catch (error) {
           logBluetoothDiagnostic(
             this.diagnosticLogger,
@@ -1530,9 +1564,7 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
           link.disconnect().catch(() => undefined),
         ),
       );
-      this.activeLinks.clear();
-      this.peripherals.clear();
-      this.noble.stop();
+      this.completeCloseOnce();
     })();
     try {
       await withBluetoothTeardownTimeout(
@@ -1567,10 +1599,8 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
             ),
           );
       }
-      this.activeLinks.clear();
-      this.peripherals.clear();
       try {
-        this.noble.stop();
+        this.completeCloseOnce();
       } catch (stopError) {
         logBluetoothDiagnostic(
           this.diagnosticLogger,
@@ -1583,6 +1613,42 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
         ? error
         : new Error("Noble Bluetooth scanner close failed");
     }
+  }
+
+  private stopScanningOnce(): Promise<void> {
+    if (this.scanStopOperation) {
+      return this.scanStopOperation;
+    }
+
+    let resolveStop!: () => void;
+    let rejectStop!: (reason?: unknown) => void;
+    const operation = new Promise<void>((resolve, reject) => {
+      resolveStop = resolve;
+      rejectStop = reject;
+    });
+    const trackedOperation = operation.finally(() => {
+      if (this.scanStopOperation === trackedOperation) {
+        this.scanStopOperation = undefined;
+      }
+    });
+    this.scanStopOperation = trackedOperation;
+
+    try {
+      this.noble.stopScanningAsync().then(resolveStop, rejectStop);
+    } catch (error) {
+      rejectStop(error);
+    }
+    return trackedOperation;
+  }
+
+  private completeCloseOnce(): void {
+    this.activeLinks.clear();
+    this.peripherals.clear();
+    if (this.nobleStopCalled) {
+      return;
+    }
+    this.nobleStopCalled = true;
+    this.noble.stop();
   }
 
   private registerCloseCancellation(cancel: () => void): () => void {
