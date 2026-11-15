@@ -870,6 +870,13 @@ class NobleBluetoothLink implements BluetoothLink {
     return this.closing;
   }
 
+  disconnectPeripheral(): Promise<void> {
+    if (this.peripheral.state !== "connected") {
+      return Promise.resolve();
+    }
+    return this.peripheral.disconnectAsync();
+  }
+
   private async close(): Promise<void> {
     const startedAt = bluetoothDiagnosticNow();
     logBluetoothDiagnostic(
@@ -1588,16 +1595,25 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
         },
       );
       for (const link of [...this.activeLinks]) {
-        void Promise.resolve()
-          .then(() => link.disconnect())
-          .catch((disconnectError: unknown) =>
-            logBluetoothDiagnostic(
-              this.diagnosticLogger,
-              "transport.disconnect",
-              "failed",
-              { error: disconnectError },
-            ),
+        try {
+          void link
+            .disconnectPeripheral()
+            .catch((disconnectError: unknown) =>
+              logBluetoothDiagnostic(
+                this.diagnosticLogger,
+                "transport.disconnect",
+                "failed",
+                { error: disconnectError },
+              ),
+            );
+        } catch (disconnectError) {
+          logBluetoothDiagnostic(
+            this.diagnosticLogger,
+            "transport.disconnect",
+            "failed",
+            { error: disconnectError },
           );
+        }
       }
       try {
         this.completeCloseOnce();

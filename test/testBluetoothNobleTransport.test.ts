@@ -69,7 +69,9 @@ class FakeCharacteristic extends EventEmitter {
   descriptorUuids = ["2902"];
   failSubscribe = false;
   subscribeError?: Error;
+  unsubscribePromise?: Promise<void>;
   onSubscribe?: () => void;
+  onUnsubscribe?: () => void;
 
   constructor(
     readonly uuid: string,
@@ -92,7 +94,8 @@ class FakeCharacteristic extends EventEmitter {
 
   unsubscribeAsync(): Promise<void> {
     this.unsubscriptions++;
-    return Promise.resolve();
+    this.onUnsubscribe?.();
+    return this.unsubscribePromise ?? Promise.resolve();
   }
 
   discoverDescriptorsAsync(): Promise<{ uuid: string }[]> {
@@ -139,6 +142,9 @@ class FakePeripheral extends EventEmitter {
   connectable = true;
   connectCount = 0;
   disconnectCount = 0;
+  nativeDisconnectFailure?: Error;
+  nativeDisconnectThrows = false;
+  onNativeDisconnect?: () => void;
   requestedServices: string[] = [];
   services: FakeService[];
 
@@ -163,6 +169,15 @@ class FakePeripheral extends EventEmitter {
 
   disconnectAsync(): Promise<void> {
     this.disconnectCount++;
+    this.onNativeDisconnect?.();
+    if (this.nativeDisconnectThrows) {
+      throw (
+        this.nativeDisconnectFailure ?? new Error("Native disconnect failed")
+      );
+    }
+    if (this.nativeDisconnectFailure) {
+      return Promise.reject(this.nativeDisconnectFailure);
+    }
     this.state = "disconnected";
     this.emit("disconnect", 0);
     return Promise.resolve();
@@ -185,6 +200,7 @@ class FakeNoble extends EventEmitter {
   allowDuplicates: boolean[] = [];
   scanning = false;
   stopped = 0;
+  onStop?: () => void;
   stopScanningCount = 0;
   stopScanningNeverResolves = false;
   stopScanningPromise?: Promise<void>;
@@ -242,6 +258,7 @@ class FakeNoble extends EventEmitter {
 
   stop(): void {
     this.stopped++;
+    this.onStop?.();
   }
 }
 
@@ -1207,8 +1224,153 @@ describe("Noble Bluetooth transport", () => {
     await transport.close();
   });
 
-  it("bounds scanner close when Noble scan stop never settles", async () => {
+  it("disconnects a connected peripheral when teardown times out during unsubscribe", async () => {
+    const order: string[] = [];
     const noble = new FakeNoble();
+    const fixture = makePeripheral();
+    noble.peripherals.set(fixture.peripheral.id, fixture.peripheral);
+    noble.discoverOnScan = [fixture.peripheral];
+    const transport = scanner(noble);
+    await transport.discover(BLUETOOTH_SERVICE_UUID, 20);
+    const link = await transport.connect({ id: fixture.peripheral.id });
+    const hello = fixture.characteristics.find(
+      (characteristic) =>
+        characteristic.uuid === BLUETOOTH_CHARACTERISTICS.hello,
+    )!;
+    let notifyUnsubscribeStarted!: () => void;
+    const unsubscribeStarted = new Promise<void>((resolve) => {
+      notifyUnsubscribeStarted = resolve;
+    });
+    let resolveUnsubscribe!: () => void;
+    hello.unsubscribePromise = new Promise<void>((resolve) => {
+      resolveUnsubscribe = resolve;
+    });
+    hello.onUnsubscribe = () => {
+      order.push("unsubscribe");
+      notifyUnsubscribeStarted();
+    };
+    fixture.peripheral.onNativeDisconnect = () =>
+      order.push("peripheral.disconnect");
+    noble.onStop = () => order.push("noble.stop");
+    await link.subscribe("hello", () => undefined);
+
+    const timeoutController = new AbortController();
+    const timeoutSignal = sinon
+      .stub(AbortSignal, "timeout")
+      .returns(timeoutController.signal);
+    let closing: Promise<void> | undefined;
+    try {
+      closing = transport.close();
+      const closed = expectRejectedWithMessage(
+        closing,
+        "BLE teardown timed out after 5000 ms",
+      );
+      await unsubscribeStarted;
+      timeoutController.abort();
+      await closed;
+
+      expect(order).to.deep.equal([
+        "unsubscribe",
+        "peripheral.disconnect",
+        "noble.stop",
+      ]);
+      expect(fixture.peripheral.disconnectCount).to.equal(1);
+      expect(noble.stopped).to.equal(1);
+
+      resolveUnsubscribe();
+      await link.disconnect();
+    } finally {
+      timeoutController.abort();
+      resolveUnsubscribe();
+      timeoutSignal.restore();
+      await closing?.catch(() => undefined);
+    }
+  });
+
+  it("continues stopping Noble when native disconnect fallback fails", async () => {
+    for (const throwsSynchronously of [true, false]) {
+      const order: string[] = [];
+      const diagnostics: string[] = [];
+      const noble = new FakeNoble();
+      const fixture = makePeripheral();
+      noble.peripherals.set(fixture.peripheral.id, fixture.peripheral);
+      noble.discoverOnScan = [fixture.peripheral];
+      const transport = scanner(noble, "hci", {
+        debug: (message) => diagnostics.push(message),
+      });
+      await transport.discover(BLUETOOTH_SERVICE_UUID, 20);
+      const link = await transport.connect({ id: fixture.peripheral.id });
+      const hello = fixture.characteristics.find(
+        (characteristic) =>
+          characteristic.uuid === BLUETOOTH_CHARACTERISTICS.hello,
+      )!;
+      let notifyUnsubscribeStarted!: () => void;
+      const unsubscribeStarted = new Promise<void>((resolve) => {
+        notifyUnsubscribeStarted = resolve;
+      });
+      let resolveUnsubscribe!: () => void;
+      hello.unsubscribePromise = new Promise<void>((resolve) => {
+        resolveUnsubscribe = resolve;
+      });
+      hello.onUnsubscribe = () => {
+        order.push("unsubscribe");
+        notifyUnsubscribeStarted();
+      };
+      const nativeDisconnectFailure = new Error("native disconnect failed");
+      fixture.peripheral.nativeDisconnectFailure = nativeDisconnectFailure;
+      fixture.peripheral.nativeDisconnectThrows = throwsSynchronously;
+      fixture.peripheral.onNativeDisconnect = () =>
+        order.push("peripheral.disconnect");
+      noble.onStop = () => order.push("noble.stop");
+      await link.subscribe("hello", () => undefined);
+
+      const timeoutController = new AbortController();
+      const timeoutSignal = sinon
+        .stub(AbortSignal, "timeout")
+        .returns(timeoutController.signal);
+      let closing: Promise<void> | undefined;
+      try {
+        closing = transport.close();
+        const closed = expectRejectedWithMessage(
+          closing,
+          "BLE teardown timed out after 5000 ms",
+        );
+        await unsubscribeStarted;
+        timeoutController.abort();
+        await closed;
+        await new Promise<void>((resolve) => setImmediate(resolve));
+
+        expect(order.slice(0, 3)).to.deep.equal([
+          "unsubscribe",
+          "peripheral.disconnect",
+          "noble.stop",
+        ]);
+        expect(noble.stopped).to.equal(1);
+        expect(diagnostics.join("\n")).to.include(
+          "stage=transport.disconnect state=failed",
+        );
+
+        resolveUnsubscribe();
+        await link.disconnect().catch(() => undefined);
+      } finally {
+        timeoutController.abort();
+        resolveUnsubscribe();
+        timeoutSignal.restore();
+        await closing?.catch(() => undefined);
+      }
+    }
+  });
+
+  it("bounds scanner close when Noble scan stop never settles", async () => {
+    const order: string[] = [];
+    const noble = new FakeNoble();
+    const fixture = makePeripheral();
+    noble.peripherals.set(fixture.peripheral.id, fixture.peripheral);
+    noble.discoverOnScan = [fixture.peripheral];
+    fixture.peripheral.onNativeDisconnect = () =>
+      order.push("peripheral.disconnect");
+    noble.onStop = () => order.push("noble.stop");
+    noble.onScanStop = () => order.push("scan.stop");
     let notifyScanStarted!: () => void;
     const scanStarted = new Promise<void>((resolve) => {
       notifyScanStarted = resolve;
@@ -1226,6 +1388,7 @@ describe("Noble Bluetooth transport", () => {
     );
     await scanStarted;
     await new Promise<void>((resolve) => setImmediate(resolve));
+    await transport.connect({ id: fixture.peripheral.id });
     let resolveScanStop!: () => void;
     noble.stopScanningPromise = new Promise<void>((resolve) => {
       resolveScanStop = resolve;
@@ -1250,12 +1413,20 @@ describe("Noble Bluetooth transport", () => {
       timeoutController.abort();
       await closed;
       expect(noble.stopScanningCount).to.equal(1);
+      expect(fixture.peripheral.disconnectCount).to.equal(1);
       expect(noble.stopped).to.equal(1);
+      expect(order).to.deep.equal([
+        "scan.stop",
+        "peripheral.disconnect",
+        "noble.stop",
+      ]);
 
       resolveScanStop();
       await new Promise<void>((resolve) => setImmediate(resolve));
       expect(noble.stopped).to.equal(1);
     } finally {
+      timeoutController.abort();
+      resolveScanStop();
       timeoutSignal.restore();
     }
   });
@@ -1305,6 +1476,8 @@ describe("Noble Bluetooth transport", () => {
       expect(noble.stopScanningCount).to.equal(1);
       expect(noble.stopped).to.equal(1);
     } finally {
+      timeoutController.abort();
+      resolveScanStop();
       timeoutSignal.restore();
     }
   });
