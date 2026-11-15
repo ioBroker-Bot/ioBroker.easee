@@ -6,8 +6,8 @@
         // do not compile anything, this file is just to configure type checking
         "noEmit": true,
 
-        "module": "commonjs",
-        "moduleResolution": "node",
+        "module": "node16",
+        "moduleResolution": "node16",
         "esModuleInterop": true,
         "allowImportingTsExtensions": true,
         // this is necessary for the automatic typing of the adapter config
