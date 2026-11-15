@@ -5,6 +5,7 @@
       "custom": true,
       "deviceManager": true
     },
+    "nogit": true,
     "version": "4.0.0",
     "news": {
       "4.0.0": {
@@ -146,6 +147,7 @@
     "mode": "daemon",
     "type": "vehicle",
     "compact": false,
+    "stopTimeout": 10000,
     "connectionType": "cloud",
     "dataSource": "poll",
     "adminUI": {
