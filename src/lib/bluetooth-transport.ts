@@ -182,9 +182,18 @@ export function raceWithTimeoutAndAbort<T>(
       callback();
     };
     onAbort = () => finish(() => reject(createAbortError()));
+    operation.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) =>
+        finish(() =>
+          reject(
+            error instanceof Error ? error : new Error("BLE operation failed"),
+          ),
+        ),
+    );
 
     if (cancellation?.aborted) {
-      void operation.catch(() => undefined);
+      settled = true;
       reject(createAbortError());
       return;
     }
@@ -192,7 +201,6 @@ export function raceWithTimeoutAndAbort<T>(
       cancellation.addEventListener("abort", onAbort, { once: true });
       if (cancellation.aborted) {
         onAbort();
-        void operation.catch(() => undefined);
         return;
       }
     }
@@ -216,17 +224,7 @@ export function raceWithTimeoutAndAbort<T>(
     }
     if (cancellation?.aborted) {
       onAbort();
-      void operation.catch(() => undefined);
       return;
     }
-    operation.then(
-      (value) => finish(() => resolve(value)),
-      (error: unknown) =>
-        finish(() =>
-          reject(
-            error instanceof Error ? error : new Error("BLE operation failed"),
-          ),
-        ),
-    );
   });
 }

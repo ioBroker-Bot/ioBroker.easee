@@ -17,6 +17,7 @@ import { MAX_NODE_TIMEOUT_MS } from "../src/lib/timeout.ts";
 import {
   BLUETOOTH_TEARDOWN_TIMEOUT_MS,
   raceWithAbortSignal,
+  raceWithTimeoutAndAbort,
 } from "../src/lib/bluetooth-transport.ts";
 import type {
   BluetoothCandidate,
@@ -415,6 +416,43 @@ function client(
 }
 
 describe("Bluetooth client boundary", () => {
+  it("consumes operation rejection when timeout scheduling throws", async () => {
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown): void => {
+      unhandledRejections.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandledRejection);
+
+    try {
+      let rejectOperation!: (error: Error) => void;
+      const operation = new Promise<never>((_resolve, reject) => {
+        rejectOperation = reject;
+      });
+      const timers: BluetoothTimerApi = {
+        setTimeout: () => {
+          throw new Error("timer setup failed");
+        },
+        clearTimeout: () => undefined,
+      };
+
+      await expectRejectedWithMessage(
+        raceWithTimeoutAndAbort(
+          operation,
+          1000,
+          timers,
+          () => new Error("timeout"),
+        ),
+        "timer setup failed",
+      );
+      rejectOperation(new Error("BLE operation failed"));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(unhandledRejections).to.deep.equal([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection);
+    }
+  });
+
   it("removes abort listeners after operations settle", async () => {
     const listeners = new Set<() => void>();
     let aborted = false;
