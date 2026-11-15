@@ -139,10 +139,12 @@ class FakeService extends EventEmitter {
 
 class FakePeripheral extends EventEmitter {
   readonly address = "58:BF:25:22:05:3A";
-  state: "connected" | "disconnected" = "disconnected";
+  state: "connecting" | "connected" | "disconnected" = "disconnected";
   connectable = true;
   connectCount = 0;
+  cancelConnectCount = 0;
   disconnectCount = 0;
+  onCancelConnect?: () => void;
   nativeDisconnectFailure?: Error;
   nativeDisconnectThrows = false;
   onNativeDisconnect?: () => void;
@@ -166,6 +168,16 @@ class FakePeripheral extends EventEmitter {
     this.connectCount++;
     this.state = "connected";
     return Promise.resolve();
+  }
+
+  cancelConnect(): void {
+    if (this.state !== "connecting") {
+      return;
+    }
+    this.cancelConnectCount++;
+    this.emit("connect", new Error("connection canceled!"));
+    this.state = "disconnected";
+    this.onCancelConnect?.();
   }
 
   disconnectAsync(): Promise<void> {
@@ -1334,6 +1346,52 @@ describe("Noble Bluetooth transport", () => {
       resolveServices?.([fixture.service]);
       await closing?.catch(() => undefined);
     }
+  });
+
+  it("cancels a BlueZ-connected peripheral before stopping Noble while services are unresolved", async () => {
+    const order: string[] = [];
+    const noble = new FakeNoble();
+    const fixture = makePeripheral();
+    noble.peripherals.set(fixture.peripheral.id, fixture.peripheral);
+    noble.discoverOnScan = [fixture.peripheral];
+    noble.onStop = () => order.push("noble.stop");
+    const transport = scanner(noble);
+    await transport.discover(BLUETOOTH_SERVICE_UUID, 20);
+
+    let notifyConnectionStarted!: () => void;
+    const connectionStarted = new Promise<void>((resolve) => {
+      notifyConnectionStarted = resolve;
+    });
+    let rejectConnection!: (error: Error) => void;
+    fixture.peripheral.connectAsync = () => {
+      // Noble stays connecting while BlueZ reports Connected but not ServicesResolved.
+      fixture.peripheral.connectCount++;
+      fixture.peripheral.state = "connecting";
+      notifyConnectionStarted();
+      return new Promise<void>((_resolve, reject) => {
+        rejectConnection = reject;
+      });
+    };
+    fixture.peripheral.onCancelConnect = () => {
+      order.push("backend.cancelConnect");
+      rejectConnection(new Error("connection canceled"));
+    };
+
+    const connecting = transport.connect({ id: fixture.peripheral.id });
+    const connectionCancelled = expectRejectedWithMessage(
+      connecting,
+      "BLE scanner is closed",
+    );
+    await connectionStarted;
+    expect(fixture.peripheral.state).to.equal("connecting");
+
+    await transport.close();
+    await connectionCancelled;
+
+    expect(order).to.deep.equal(["backend.cancelConnect", "noble.stop"]);
+    expect(fixture.peripheral.cancelConnectCount).to.equal(1);
+    expect(fixture.peripheral.disconnectCount).to.equal(0);
+    expect(fixture.peripheral.state).to.equal("disconnected");
   });
 
   it("fails closed when the vendor service or a unique channel is absent", async () => {
