@@ -1008,6 +1008,11 @@ class NobleBluetoothLink implements BluetoothLink {
 export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
   private readonly peripherals = new Map<string, Peripheral>();
   private readonly activeLinks = new Set<NobleBluetoothLink>();
+  private readonly inFlightPeripherals = new Set<Peripheral>();
+  private readonly peripheralDisconnectOperations = new WeakMap<
+    Peripheral,
+    Promise<void>
+  >();
   private scanning = false;
   private discoveryInFlight = false;
   private cancelDiscovery?: () => void;
@@ -1322,6 +1327,7 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
 
   async connect(candidate: BluetoothCandidate): Promise<BluetoothLink> {
     const connectStartedAt = bluetoothDiagnosticNow();
+    let inFlightPeripheral: Peripheral | undefined;
     logBluetoothDiagnostic(
       this.diagnosticLogger,
       "transport.connect",
@@ -1344,6 +1350,8 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
       if (this.binding !== "dbus" && !peripheral.connectable) {
         throw new Error("BLE peripheral is not currently connectable");
       }
+      this.inFlightPeripherals.add(peripheral);
+      inFlightPeripheral = peripheral;
       if (peripheral.state !== "connected") {
         const linkConnectStartedAt = bluetoothDiagnosticNow();
         logBluetoothDiagnostic(
@@ -1356,9 +1364,9 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
           void connecting.then(
             () => {
               if (this.closed && isPeripheralConnected(peripheral)) {
-                void Promise.resolve()
-                  .then(() => peripheral.disconnectAsync())
-                  .catch(() => undefined);
+                void this.disconnectPeripheralOnce(peripheral).catch(
+                  () => undefined,
+                );
               }
             },
             () => undefined,
@@ -1427,16 +1435,14 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
             error,
           },
         );
-        if (peripheral.state === "connected") {
+        if (!this.closed && peripheral.state === "connected") {
           const cleanupStartedAt = bluetoothDiagnosticNow();
           logBluetoothDiagnostic(
             this.diagnosticLogger,
             "transport.disconnect",
             "cleanup_started",
           );
-          const disconnecting = Promise.resolve().then(() =>
-            peripheral.disconnectAsync(),
-          );
+          const disconnecting = this.disconnectPeripheralOnce(peripheral);
           try {
             await withScannerClose(disconnecting, this.closeController.signal);
             logBluetoothDiagnostic(
@@ -1533,6 +1539,10 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
         },
       );
       throw error;
+    } finally {
+      if (inFlightPeripheral) {
+        this.inFlightPeripherals.delete(inFlightPeripheral);
+      }
     }
   }
 
@@ -1560,23 +1570,43 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
       cancel();
     }
     this.closeController.abort();
+    const inFlightDisconnects = this.disconnectInFlightPeripherals();
     const closeOperation = (async (): Promise<void> => {
       this.cancelDiscovery?.();
       const shouldStopScanning =
         this.scanning || this.scanStopOperation !== undefined;
       this.scanning = false;
-      if (shouldStopScanning) {
+      const scanStopOperation = (async (): Promise<void> => {
+        if (!shouldStopScanning) {
+          return;
+        }
+        const scanStopStartedAt = bluetoothDiagnosticNow();
+        logBluetoothDiagnostic(
+          this.diagnosticLogger,
+          "transport.scan_stop",
+          "started",
+        );
         try {
           await this.stopScanningOnce();
+          logBluetoothDiagnostic(
+            this.diagnosticLogger,
+            "transport.scan_stop",
+            "completed",
+            { durationMs: bluetoothDiagnosticNow() - scanStopStartedAt },
+          );
         } catch (error) {
           logBluetoothDiagnostic(
             this.diagnosticLogger,
             "transport.scan_stop",
             "failed",
-            { error },
+            {
+              durationMs: bluetoothDiagnosticNow() - scanStopStartedAt,
+              error,
+            },
           );
         }
-      }
+      })();
+      await Promise.all([scanStopOperation, ...inFlightDisconnects]);
       await Promise.all(
         [...this.activeLinks].map((link) =>
           link.disconnect().catch(() => undefined),
@@ -1640,6 +1670,68 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
         ? error
         : new Error("Noble Bluetooth scanner close failed");
     }
+  }
+
+  private disconnectInFlightPeripherals(): Promise<void>[] {
+    return [...this.inFlightPeripherals]
+      .filter(isPeripheralConnected)
+      .map((peripheral) => {
+        const cleanupStartedAt = bluetoothDiagnosticNow();
+        logBluetoothDiagnostic(
+          this.diagnosticLogger,
+          "transport.disconnect",
+          "cleanup_started",
+        );
+        return this.disconnectPeripheralOnce(peripheral).then(
+          () => {
+            logBluetoothDiagnostic(
+              this.diagnosticLogger,
+              "transport.disconnect",
+              "cleanup_completed",
+              {
+                durationMs: bluetoothDiagnosticNow() - cleanupStartedAt,
+              },
+            );
+          },
+          (error: unknown) => {
+            logBluetoothDiagnostic(
+              this.diagnosticLogger,
+              "transport.disconnect",
+              "cleanup_failed",
+              {
+                durationMs: bluetoothDiagnosticNow() - cleanupStartedAt,
+                error,
+              },
+            );
+          },
+        );
+      });
+  }
+
+  private disconnectPeripheralOnce(peripheral: Peripheral): Promise<void> {
+    const existing = this.peripheralDisconnectOperations.get(peripheral);
+    if (existing) {
+      return existing;
+    }
+
+    let disconnecting: Promise<void>;
+    try {
+      disconnecting = Promise.resolve(peripheral.disconnectAsync());
+    } catch (error) {
+      disconnecting = Promise.reject(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+    this.peripheralDisconnectOperations.set(peripheral, disconnecting);
+    const removeOperation = (): void => {
+      if (
+        this.peripheralDisconnectOperations.get(peripheral) === disconnecting
+      ) {
+        this.peripheralDisconnectOperations.delete(peripheral);
+      }
+    };
+    void disconnecting.then(removeOperation, removeOperation);
+    return disconnecting;
   }
 
   private stopScanningOnce(): Promise<void> {
