@@ -147,6 +147,7 @@
     "mode": "daemon",
     "type": "vehicle",
     "compact": false,
+    "stopTimeout": 10000,
     "connectionType": "cloud",
     "dataSource": "poll",
     "adminUI": {

@@ -1,4 +1,3 @@
-import { hciStatusMessage } from "@stoprocent/noble";
 import { createRequire } from "node:module";
 import type {
   Characteristic,
@@ -39,9 +38,13 @@ import { validateTimeoutMs } from "./timeout.ts";
 type NobleFactory = (binding?: NobleBinding) => Promise<Noble>;
 type NobleBluetoothScannerInterfaces = BluetoothScanner &
   BluetoothAdapterStatusProvider;
-type NobleBinding = "default" | "hci" | "dbus" | "mac" | "win";
+type NobleBinding = "hci" | "dbus" | "mac" | "win";
 
 const NOBLE_BINDINGS = new Set(["hci", "dbus", "mac", "win"]);
+const requireFromAdapter = createRequire(__filename);
+const hciStatusMessage = requireFromAdapter(
+  "@stoprocent/noble/lib/hci-status-message.js",
+) as (reason: number | string) => string;
 
 /**
  * Ensures the Noble package itself can resolve its optional D-Bus peer.
@@ -78,11 +81,20 @@ export function resolveNobleBinding(
     return configured as NobleBinding;
   }
 
-  if (platform === "linux" && automaticHciFallback) {
-    return "hci";
+  if (platform === "linux") {
+    return automaticHciFallback ? "hci" : "dbus";
   }
 
-  return platform === "linux" ? "dbus" : "default";
+  switch (platform) {
+    case "darwin":
+      return "mac";
+    case "win32":
+      return "win";
+    case "freebsd":
+      return "hci";
+    default:
+      throw new Error(`Unsupported Bluetooth platform: ${platform}`);
+  }
 }
 
 const CHANNELS = Object.keys(BLUETOOTH_CHARACTERISTICS) as BluetoothChannel[];
@@ -319,9 +331,10 @@ export async function pairBluezDevice(
 
 function canNobleResolveDependency(moduleName: string): boolean {
   try {
-    const requireFromAdapter = createRequire(__filename);
-    const noblePath = requireFromAdapter.resolve("@stoprocent/noble");
-    createRequire(noblePath).resolve(moduleName);
+    const noblePackagePath = requireFromAdapter.resolve(
+      "@stoprocent/noble/package.json",
+    );
+    createRequire(noblePackagePath).resolve(moduleName);
     return true;
   } catch {
     return false;
@@ -336,13 +349,14 @@ function canNobleResolveHciDependency(): boolean {
   return canNobleResolveDependency("@stoprocent/bluetooth-hci-socket");
 }
 
-async function loadDefaultNoble(binding?: NobleBinding): Promise<Noble> {
+function loadDefaultNoble(binding?: NobleBinding): Promise<Noble> {
   const selectedBinding = binding ?? resolveNobleBinding(process.platform);
 
-  const requireFromAdapter = createRequire(__filename);
   if (selectedBinding === "dbus") {
-    const noblePath = requireFromAdapter.resolve("@stoprocent/noble");
-    const requireFromNoble = createRequire(noblePath);
+    const noblePackagePath = requireFromAdapter.resolve(
+      "@stoprocent/noble/package.json",
+    );
+    const requireFromNoble = createRequire(noblePackagePath);
     ensureNobleDbusDependency((moduleName) =>
       requireFromNoble.resolve(moduleName),
     );
@@ -379,11 +393,10 @@ async function loadDefaultNoble(binding?: NobleBinding): Promise<Noble> {
     }
   }
 
-  const nobleModule = await import("@stoprocent/noble");
-  // Noble 2.8 supports D-Bus at runtime, but omits it from the published BindingType union.
-  return nobleModule.withBindings(
-    selectedBinding as Parameters<typeof nobleModule.withBindings>[0],
-  );
+  const withBindings = requireFromAdapter(
+    "@stoprocent/noble/lib/resolve-bindings.js",
+  ) as (bindingType: string) => Noble;
+  return Promise.resolve(withBindings(selectedBinding));
 }
 
 function matchingCharacteristics(
@@ -1491,9 +1504,7 @@ export class NobleBluetoothScanner implements NobleBluetoothScannerInterfaces {
               }
             }
           : undefined;
-      const allowCoreBluetoothCccdFallback =
-        this.binding === "mac" ||
-        (this.binding === "default" && process.platform === "darwin");
+      const allowCoreBluetoothCccdFallback = this.binding === "mac";
       const link = new NobleBluetoothLink(
         peripheral,
         characteristics,

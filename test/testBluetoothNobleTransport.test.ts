@@ -3,6 +3,7 @@
 export {};
 
 import { EventEmitter } from "node:events";
+import { createRequire } from "node:module";
 import { expect } from "chai";
 import sinon from "sinon";
 import { describe, it } from "mocha";
@@ -534,18 +535,30 @@ describe("Noble Bluetooth transport", () => {
     expect(cleared).to.equal(scheduled);
   });
 
-  it("uses BlueZ D-Bus by default on Linux and preserves binding precedence", () => {
+  it("selects concrete platform defaults and preserves explicit binding precedence", () => {
     expect(resolveNobleBinding("linux")).to.equal("dbus");
     expect(resolveNobleBinding("linux", "hci")).to.equal("hci");
     expect(resolveNobleBinding("linux", "dbus")).to.equal("dbus");
     expect(resolveNobleBinding("linux", "default")).to.equal("dbus");
     expect(resolveNobleBinding("linux", "auto")).to.equal("dbus");
-    expect(resolveNobleBinding("linux", "hci")).to.equal("hci");
     expect(resolveNobleBinding("linux", "auto", true)).to.equal("hci");
     expect(resolveNobleBinding("linux", "auto", false)).to.equal("dbus");
     expect(resolveNobleBinding("linux", "dbus", true)).to.equal("dbus");
-    expect(resolveNobleBinding("darwin")).to.equal("default");
+    expect(resolveNobleBinding("darwin")).to.equal("mac");
+    expect(resolveNobleBinding("darwin", "auto")).to.equal("mac");
+    expect(resolveNobleBinding("darwin", "win")).to.equal("win");
+    expect(resolveNobleBinding("win32")).to.equal("win");
+    expect(resolveNobleBinding("win32", "auto")).to.equal("win");
+    expect(resolveNobleBinding("win32", "mac")).to.equal("mac");
+    expect(resolveNobleBinding("freebsd")).to.equal("hci");
+    expect(resolveNobleBinding("freebsd", "dbus")).to.equal("dbus");
     expect(scanner(new FakeNoble(), "hci").getBinding()).to.equal("hci");
+  });
+
+  it("does not evaluate Noble's root entry while loading transport helpers", () => {
+    const nobleRootPath =
+      createRequire(__filename).resolve("@stoprocent/noble");
+    expect(require.cache[nobleRootPath]).to.equal(undefined);
   });
 
   it("reports when Noble cannot resolve its optional D-Bus dependency", () => {
