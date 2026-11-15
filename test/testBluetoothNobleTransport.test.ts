@@ -386,6 +386,92 @@ describe("BlueZ pairing", () => {
     expect(counters).to.deep.equal({ pairCalls: 1, disconnects: 1 });
   });
 
+  it("does not open D-Bus when pairing is already cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    let busFactoryCalls = 0;
+
+    await expectRejectedWithMessage(
+      pairBluezDevice(
+        "58:BF:25:22:05:3A",
+        testTimers,
+        100,
+        () => {
+          busFactoryCalls++;
+          return fakeBluezBus(() => Promise.resolve(), {
+            pairCalls: 0,
+            disconnects: 0,
+          });
+        },
+        controller.signal,
+      ),
+      "BLE scanner is closed",
+    );
+
+    expect(busFactoryCalls).to.equal(0);
+  });
+
+  it("does not call Pair if cancellation wins while the device proxy resolves", async () => {
+    const controller = new AbortController();
+    const devicePath = "/org/bluez/hci0/dev_58_BF_25_22_05_3A";
+    let notifyDeviceProxyRequested!: () => void;
+    const deviceProxyRequested = new Promise<void>((resolve) => {
+      notifyDeviceProxyRequested = resolve;
+    });
+    let resolveDeviceProxy!: (deviceObject: {
+      getInterface: () => { Pair: () => Promise<void> };
+    }) => void;
+    const deviceProxy = new Promise<{
+      getInterface: () => { Pair: () => Promise<void> };
+    }>((resolve) => {
+      resolveDeviceProxy = resolve;
+    });
+    let pairCalls = 0;
+    let disconnects = 0;
+    const bus = {
+      on: () => undefined,
+      getProxyObject: (_service: string, path: string) =>
+        path === "/"
+          ? Promise.resolve({
+              getInterface: () => ({
+                GetManagedObjects: () =>
+                  Promise.resolve({
+                    [devicePath]: {
+                      "org.bluez.Device1": {
+                        Address: { value: "58:BF:25:22:05:3A" },
+                      },
+                    },
+                  }),
+              }),
+            })
+          : (notifyDeviceProxyRequested(), deviceProxy),
+      disconnect: () => disconnects++,
+    } as unknown as MessageBus;
+
+    const pairing = pairBluezDevice(
+      "58:BF:25:22:05:3A",
+      testTimers,
+      100,
+      () => bus,
+      controller.signal,
+    );
+    await deviceProxyRequested;
+    resolveDeviceProxy({
+      getInterface: () => ({
+        Pair: () => {
+          pairCalls++;
+          return Promise.resolve();
+        },
+      }),
+    });
+    controller.abort();
+
+    await expectRejectedWithMessage(pairing, "BLE scanner is closed");
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(pairCalls).to.equal(0);
+    expect(disconnects).to.equal(1);
+  });
+
   it("surfaces Device1.Pair failures", async () => {
     const counters = { pairCalls: 0, disconnects: 0 };
     const busFactory = (): MessageBus =>

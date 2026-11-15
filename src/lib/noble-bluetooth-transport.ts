@@ -277,6 +277,12 @@ export async function pairBluezDevice(
   scannerClosed?: AbortSignal,
 ): Promise<void> {
   validateTimeoutMs(timeoutMs, "BlueZ pairing timeout");
+  const assertPairingActive = (): void => {
+    if (scannerClosed?.aborted) {
+      throw new Error("BLE scanner is closed");
+    }
+  };
+  assertPairingActive();
   const bus = busFactory();
   bus.on("error", () => undefined);
   const timeoutMessage = `BlueZ pairing timed out after ${timeoutMs} ms`;
@@ -302,6 +308,7 @@ export async function pairBluezDevice(
     }
     const deviceObject = await bus.getProxyObject(BLUEZ_SERVICE, devicePath);
     const device = deviceObject.getInterface(BLUEZ_DEVICE_INTERFACE);
+    assertPairingActive();
     await device.Pair();
   })();
 
