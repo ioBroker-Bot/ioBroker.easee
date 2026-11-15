@@ -6,8 +6,21 @@
       "deviceManager": true
     },
     "nogit": true,
-    "version": "4.0.0",
+    "version": "4.0.1",
     "news": {
+      "4.0.1": {
+        "en": "Fixed repository-checker findings and improved automatic Bluetooth binding selection, timer cleanup, and bounded shutdown handling (up to 10 seconds).\nLimited the displayed charging power to two decimal places in the Device Manager card.",
+        "de": "Die Ergebnisse des Repository-Checks wurden behoben und die automatische Bluetooth-Bindungsauswahl, Timerbereinigung und Abschaltung verbessert (bis zu 10 Sekunden).\nBeschränkte die Ladeleistung der Geräte-Manager-Karte auf 2 Dezimalstellen.",
+        "ru": "Исправлены результаты проверки репозитория и улучшен автоматический выбор привязки Bluetooth, очистка таймера и обработка ограниченных отключений (до 10 секунд).\nОграничьте отображаемую мощность зарядки до двух десятичных знаков на карте диспетчера устройств.",
+        "pt": "Corrigiu os achados do repositório e melhorou a seleção automática de links Bluetooth, a limpeza do temporizador e o desligamento (até 10 segundos).\nLimitou a carga exibida a duas casas decimais na placa Device Manager.",
+        "nl": "De bevindingen van de repository-checker zijn opgelost en de automatische selectie van Bluetooth-bindingen, het opschonen van de timer en de verwerking van begrensde uitschakelingen (tot 10 seconden) verbeterd.\nHet weergegeven laadvermogen is beperkt tot twee cijfers achter de komma op de Device Manager-kaart.",
+        "fr": "Correction des erreurs du Repository Checker et amélioration de la sélection automatique des liens Bluetooth, du nettoyage du minuteur et de l'arrêt limité (jusqu'à 10 secondes).\nLa puissance de charge affichée a été limitée à la deuxième décimale sur la carte Device Manager.",
+        "it": "Risolti i risultati del repository Checker e migliore selezione automatica dei binding Bluetooth, pulizia con timer e spegnimento limitato (fino a 10 secondi).\nHa limitato la potenza di ricarica a due decimali nella scheda Device Manager.",
+        "es": "Se corrigieron los hallazgos del comprobador de repositorios y se mejoró la selección automática de enlaces por Bluetooth, la limpieza del temporizador y el apagado limitado (hasta 10 segundos).\nLimitó la potencia de carga mostrada a dos decimales en la tarjeta Device Manager.",
+        "pl": "Naprawiono wyniki sprawdzania repozytoriów i ulepszony automatyczny wybór wiązania Bluetooth, czyszczenie timera i obsługa ograniczonego wyłączania (do 10 sekund).\nOgranicz wyświetlaną moc ładowania do dwóch miejsc po przecinku na karcie Menedżera urządzeń.",
+        "uk": "Виправлені результати перевірки сховища та покращений автоматичний вибір прив'язки Bluetooth, очищення таймера та обробка обмеженого відключення (до 10 секунд).\nОбмежили відображену потужність зарядки двома знаками після коми в картці диспетчера пристроїв.",
+        "zh-cn": "修复了存储库检查器发现的问题，改进了自动蓝牙绑定选择、计时器清理和限定关机处理（最多 10 秒）。\n将设备管理器卡中显示的充电功率限制为小数点后两位。"
+      },
       "4.0.0": {
         "en": "Added optional local Bluetooth connectivity alongside Cloud, with charger discovery and setup through the Device Manager.\nImproved Cloud status and session updates, charger controls, and Bluetooth charger configuration saving.",
         "de": "Optionale lokale Bluetooth-Verbindung mit Cloud, Ladegerätsuche und Einrichtung im Gerätemanager.\nVerbesserte Cloud-Status- und Sitzungsupdates, Ladesteuerung und Speicherung der Bluetooth-Ladekonfiguration.",
@@ -85,19 +98,6 @@
         "pl": "Adapter został przeniesiony do organizacji iobroker-community-adapter-organization\nAdapter wymaga teraz node.js >= 22.\nAdapter wymaga kontrolera js->= 7.2.2 teraz\nAdapter wymaga administratora >= 7.7.22 teraz",
         "uk": "Адаптер перенесено в організацію адаптера спільноти iobroker\nТепер адаптер вимагає node.js >= 22.\nАдаптер вимагає js-контролера >= 7.2.2 зараз\nАдаптер вимагає адміністратора >= 7.7.22 зараз",
         "zh-cn": "适配器已迁移到 iobroker 社区适配器组织\n适配器现在需要 node.js >= 22。\n适配器现在需要 js-controller >= 7.2.2\n适配器现在需要管理员 >= 7.7.22"
-      },
-      "2.0.0-alpha.0": {
-        "en": "Adapter has been migrated into the iobroker-community-adapter-organisation\nAdapter requires node.js >= 22 now.\nAdapter requires js-controller >= 7.2.2 now\nAdapter requires admin >= 7.7.22 now",
-        "de": "Adapter wurde in die Iobroker-Community-Adapter-Organisation migriert\nAdapter benötigt jetzt node.js >= 22.\nAdapter benötigt jetzt JS-Controller >= 7.2.2\nAdapter benötigt jetzt admin >= 7.7.22",
-        "ru": "Адаптер перенесен в организацию iobroker-community-adapter\nТеперь для адаптера требуется файл node.js >= 22.\nДля адаптера теперь требуется js-контроллер >= 7.2.2\nДля адаптера теперь требуется администратор >= 7.7.22",
-        "pt": "O adaptador foi migrado para o iobroker-community-adapter-organization\nO adaptador exige node.js >= 2.\nO adaptador exige js-controller >= 7.2.2\nAgora o adaptador exige admin >= 7.7.2",
-        "nl": "De adapter is gemigreerd naar de iobroker-community-adapter-organisatie\nVoor de adapter is nu node.js >= 22 nodig.\nVoor de adapter is nu een js-controller >= 7.2.2 vereist\nAdapter vereist nu admin >= 7.7.22",
-        "fr": "L'adaptateur a été migré vers l'organisation iobroker-community-adapter-organisation\nAdapter nécessite node.js >= 22.\nAdapter nécessite JS-Controller >= 7.2.2\nAdapter nécessite admin >= 7.7.22",
-        "it": "Adapter è stato migrato nella comunità iobroker di iobroker\nAdapter richiede node.js >= 2 ora.\nAdapter richiede js-controller >= 7.2.2 ora\nAdapter richiede admin >= 7.7.2 ora",
-        "es": "El adaptador se ha migrado a la organización iobroker-comunidad-adaptador\nEl adaptador necesita node.js >= 22 ahora.\nEl adaptador ahora requiere js-controller >= 7.2.2\nEl adaptador necesita admin >= 7.7.22 ahora",
-        "pl": "Adapter został przeniesiony do organizacji iobroker-community-adapter-organization\nAdapter wymaga teraz node.js >= 22.\nAdapter wymaga kontrolera js->= 7.2.2 teraz\nAdapter wymaga administratora >= 7.7.22 teraz",
-        "uk": "Адаптер перенесено в організацію адаптера спільноти iobroker\nТепер адаптер вимагає node.js >= 22.\nАдаптер вимагає js-контролера >= 7.2.2 зараз\nАдаптер вимагає адміністратора >= 7.7.22 зараз",
-        "zh-cn": "适配器已迁移到 iobroker 社区适配器组织\n适配器现在需要 node.js >= 22。\n适配器现在需要 js-controller >= 7.2.2\n适配器现在需要管理员 >= 7.7.22"
       }
     },
     "titleLang": {
@@ -153,7 +153,6 @@
     "adminUI": {
       "config": "json"
     },
-    "nogit": true,
     "dependencies": [
       {
         "js-controller": ">=7.2.2"

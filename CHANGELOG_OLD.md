@@ -1,4 +1,9 @@
 # Older changes
+## 2.0.0 (2026-10-18)
+- (Voodoo2man) Improved charger status updates and recovery after connection interruptions, with contributions from @Michaelnorge, @Codibris, and @m1chel87 and earlier compatibility work by @NCIceWolf.
+- (Voodoo2man) Improved circuit-current controls and added configurable session updates across chargers.
+- (Voodoo2man) Added configurable charging costs, including VAT.
+
 ## 2.0.0-alpha.1 (2026-10-17)
 - (mcm1957) Adapter has been migrated into the iobroker-community-adapter-organisation
 - (iobroker-bot) Adapter requires node.js >= 22 now.
