@@ -6,8 +6,21 @@
       "deviceManager": true
     },
     "nogit": true,
-    "version": "4.0.1",
+    "version": "4.1.0",
     "news": {
+      "4.1.0": {
+        "en": "Added online/offline indicators for chargers in the Admin object browser.\nImproved cleanup of Bluetooth connections that complete while the adapter shuts down.",
+        "de": "Online-/Offline-Anzeigen für Ladegeräte im Admin-Browser hinzugefügt.\nBessere Bereinigung von Bluetooth-Verbindungen beim Herunterfahren des Adapters.",
+        "ru": "Добавлены индикаторы онлайн/оффлайн для зарядных устройств в браузере объектов Admin.\nУлучшена очистка подключений Bluetooth, которые завершаются во время выключения адаптера.",
+        "pt": "Adição de indicadores on-line/offline de carregadores no Admin Object.\nMelhor limpeza das conexões Bluetooth concluídas com o adaptador desligado.",
+        "nl": "Online/offline indicatoren voor opladers toegevoegd in de Admin Object Browser.\nVerbeterde opschoning van Bluetooth-verbindingen die worden voltooid terwijl de adapter wordt uitgeschakeld.",
+        "fr": "Ajout d'indicateurs en ligne/hors ligne pour les chargeurs dans le navigateur Admin.\nNettoyage amélioré des connexions Bluetooth qui se terminent à l'arrêt de l'adaptateur.",
+        "it": "Aggiunti indicatori online/offline per i caricabatterie nel browser Admin.\nMigliore pulizia delle connessioni Bluetooth anche quando l'adattatore è spento.",
+        "es": "Se han añadido indicadores online y offline de los cargadores en el navegador Admin.\nLimpieza mejorada de las conexiones Bluetooth que se completan cuando el adaptador se apaga.",
+        "pl": "Dodano wskaźniki online/offline dla ładowarek w przeglądarce obiektów administratora.\nUlepszone czyszczenie połączeń Bluetooth, które kończą się po wyłączeniu adaptera.",
+        "uk": "Додані індикатори онлайн/офлайн для зарядних пристроїв в браузері об'єктів Адміністратора.\nПокращено очищення з'єднань Bluetooth, яке завершується під час вимкнення адаптера.",
+        "zh-cn": "在管理员对象浏览器中为充电器添加了在线/离线指示器。\n改进了适配器关闭时完成的蓝牙连接的清理工作。"
+      },
       "4.0.1": {
         "en": "Fixed repository-checker findings and improved automatic Bluetooth binding selection, timer cleanup, and bounded shutdown handling (up to 10 seconds).\nLimited the displayed charging power to two decimal places in the Device Manager card.",
         "de": "Die Ergebnisse des Repository-Checks wurden behoben und die automatische Bluetooth-Bindungsauswahl, Timerbereinigung und Abschaltung verbessert (bis zu 10 Sekunden).\nBeschränkte die Ladeleistung der Geräte-Manager-Karte auf 2 Dezimalstellen.",
@@ -85,19 +98,6 @@
         "pl": "Poprawiono stan ładowarki i obsługę łączności dzięki interfejsowi API obserwacji, odporności SignalR, ograniczonym sondażom i ponownym próbom API, uwzględniając wkład @Voodoo2man, @Michaelnorge, @Codibris i @m1chel87, z wcześniejszymi podstawami Node.js i JSON-config z @NCIceWolf.\nPoprawiona niezawodność aktualizacji prądu obwodu i dodane konfigurowalne, dostosowane do limitu prędkości sondażu sesji między ładowarkami.\nDodano konfigurowalne ceny naliczania netto i podatek VAT ze zsynchronizowanymi cenami brutto.",
         "uk": "Покращений стан зарядного пристрою та обробка підключення за допомогою API спостережень, стійкості SignalR, обмеженого опитування та повторних спроб API, включаючи внески від @Voodoo2man, @Michaelnorge, @Codibris та @m1chel87, з попередніми основами Node.js та JSON-config від @NCIceWolf.\nПокращена надійність оновлення струму ланцюга та додано настроюване опитування сеансів із урахуванням обмеження швидкості між зарядними пристроями.\nДодані настроювані чисті ціни нарахування та ПДВ із синхронізованими валовими цінами.",
         "zh-cn": "利用观察 API、SignalR 弹性、限定轮询和 API 重试改进了充电器状态和连接处理，整合了来自 @Voodoo2man、@Michaelnorge、@Codibris 和 @m1chel87 的贡献，以及之前来自 @NCIceWolf 的 Node.js 和 JSON-Config 基础工作。\n提高了电路电流更新的可靠性，并增加了充电器之间可配置、可感知速率限制的会话轮询。\n增加了可配置的净收费价格和增值税，并同步了总价格。"
-      },
-      "2.0.0-alpha.1": {
-        "en": "Adapter has been migrated into the iobroker-community-adapter-organisation\nAdapter requires node.js >= 22 now.\nAdapter requires js-controller >= 7.2.2 now\nAdapter requires admin >= 7.7.22 now",
-        "de": "Adapter wurde in die Iobroker-Community-Adapter-Organisation migriert\nAdapter benötigt jetzt node.js >= 22.\nAdapter benötigt jetzt JS-Controller >= 7.2.2\nAdapter benötigt jetzt admin >= 7.7.22",
-        "ru": "Адаптер перенесен в организацию iobroker-community-adapter\nТеперь для адаптера требуется файл node.js >= 22.\nДля адаптера теперь требуется js-контроллер >= 7.2.2\nДля адаптера теперь требуется администратор >= 7.7.22",
-        "pt": "O adaptador foi migrado para o iobroker-community-adapter-organization\nO adaptador exige node.js >= 2.\nO adaptador exige js-controller >= 7.2.2\nAgora o adaptador exige admin >= 7.7.2",
-        "nl": "De adapter is gemigreerd naar de iobroker-community-adapter-organisatie\nVoor de adapter is nu node.js >= 22 nodig.\nVoor de adapter is nu een js-controller >= 7.2.2 vereist\nAdapter vereist nu admin >= 7.7.22",
-        "fr": "L'adaptateur a été migré vers l'organisation iobroker-community-adapter-organisation\nAdapter nécessite node.js >= 22.\nAdapter nécessite JS-Controller >= 7.2.2\nAdapter nécessite admin >= 7.7.22",
-        "it": "Adapter è stato migrato nella comunità iobroker di iobroker\nAdapter richiede node.js >= 2 ora.\nAdapter richiede js-controller >= 7.2.2 ora\nAdapter richiede admin >= 7.7.2 ora",
-        "es": "El adaptador se ha migrado a la organización iobroker-comunidad-adaptador\nEl adaptador necesita node.js >= 22 ahora.\nEl adaptador ahora requiere js-controller >= 7.2.2\nEl adaptador necesita admin >= 7.7.22 ahora",
-        "pl": "Adapter został przeniesiony do organizacji iobroker-community-adapter-organization\nAdapter wymaga teraz node.js >= 22.\nAdapter wymaga kontrolera js->= 7.2.2 teraz\nAdapter wymaga administratora >= 7.7.22 teraz",
-        "uk": "Адаптер перенесено в організацію адаптера спільноти iobroker\nТепер адаптер вимагає node.js >= 22.\nАдаптер вимагає js-контролера >= 7.2.2 зараз\nАдаптер вимагає адміністратора >= 7.7.22 зараз",
-        "zh-cn": "适配器已迁移到 iobroker 社区适配器组织\n适配器现在需要 node.js >= 22。\n适配器现在需要 js-controller >= 7.2.2\n适配器现在需要管理员 >= 7.7.22"
       }
     },
     "titleLang": {

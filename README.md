@@ -91,7 +91,7 @@ This adapter would not have been possible without the great work of @Newan (http
   Placeholder for the next version (at the beginning of the line):
   ### **WORK IN PROGRESS**
 -->
-### **WORK IN PROGRESS**
+### 4.1.0 (2026-11-19)
 - (Voodoo2man) Added online/offline indicators for chargers in the Admin object browser.
 - (Voodoo2man) Improved cleanup of Bluetooth connections that complete while the adapter shuts down.
 
@@ -112,9 +112,6 @@ This adapter would not have been possible without the great work of @Newan (http
 - (Voodoo2man) Corrected cable-lock status reporting and improved the reliability of charger status updates.
 - (Voodoo2man) Added a readable and adjustable permanent cable-lock setting, kept separate from the actual cable-lock status.
 - (Voodoo2man) Improved recovery of live charger updates after connection interruptions while retaining regular status updates when live updates are disabled.
-
-### 3.0.0 (2026-10-23)
-- (Voodoo2man) Raised the minimum Node.js version to 22.19.0.
 
 [Older changelogs can be found there](CHANGELOG_OLD.md)
 

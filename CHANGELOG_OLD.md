@@ -1,4 +1,7 @@
 # Older changes
+## 3.0.0 (2026-10-23)
+- (Voodoo2man) Raised the minimum Node.js version to 22.19.0.
+
 ## 2.0.0 (2026-10-18)
 - (Voodoo2man) Improved charger status updates and recovery after connection interruptions, with contributions from @Michaelnorge, @Codibris, and @m1chel87 and earlier compatibility work by @NCIceWolf.
 - (Voodoo2man) Improved circuit-current controls and added configurable session updates across chargers.
